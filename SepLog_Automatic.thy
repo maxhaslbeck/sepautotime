@@ -574,17 +574,12 @@ struct
   (* Nat splitter  powerd by auto2   *)
   (***********************************)
 
-  fun mytac ctxt a b = let val _ = tracing (Syntax.string_of_term ctxt a);
-              val _ = tracing (Syntax.string_of_term ctxt b)
-              val _ = tracing ("ole")
+  fun mytac ctxt a b = let 
       val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
-      val _ = length ths
-      val _ =  let fun print thm = tracing (Thm.string_of_thm ctxt thm)
-          in map print ths end 
    in
-         (if length ths > 0 then let val _ = tracing "in" in (EqSubst.eqsubst_tac ctxt [1] ths 
+         (if length ths > 0 then  (EqSubst.eqsubst_tac ctxt [1] ths 
               THEN' FIRST' [ resolve_tac ctxt @{thms refl}, 
-                             SOLVED' (simp_tac (put_simpset HOL_ss ctxt  addsimps @{thms mult.commute})) ] ) 1 end else no_tac) end 
+                             SOLVED' (simp_tac (put_simpset HOL_ss ctxt  addsimps @{thms mult.commute})) ] ) 1  else no_tac) end 
 
   fun split_nat_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
         SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
@@ -639,11 +634,7 @@ struct
     (TRY o REPEAT_ALL_NEW (match_tac ctxt @{thms ent_ex_preI}) THEN'
      resolve_tac ctxt [thm]) i st
   end;
-
-  fun print_tac ctxt i st =
-    let val _ = tracing ("..>");
-        val _ = tracing (Thm.string_of_thm ctxt st)
-    in all_tac st end
+ 
 
   fun atom_solve_tac ctxt = 
         FIRST' [ resolve_tac ctxt @{thms ent_refl},
@@ -667,7 +658,7 @@ struct
     preprocess_entails_tac
     THEN' (TRY o
       REPEAT_ALL_NEW (match_tac ctxt (rev (Named_Theorems.get ctxt @{named_theorems sep_eintros}))))
-    THEN_ALL_NEW (print_tac ctxt THEN' dflt_tac ctxt THEN'                                             
+    THEN_ALL_NEW (  dflt_tac ctxt THEN'                                             
       TRY o (match_tac ctxt @{thms ent_triv} 
         ORELSE' resolve_tac ctxt @{thms ent_refl}
         ORELSE' match_entails_tac))
@@ -678,10 +669,10 @@ struct
   (* Verification Condition Generator*)
   (***********************************)
 
-  fun heap_rule_tac ctxt h_thms = let val _ = tracing "here heap_rule_tac" in
+  fun heap_rule_tac ctxt h_thms =  
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
-    ( dflt_tac ctxt THEN'  time_frame_inference_tac ctxt) )) end;                                          
+    ( dflt_tac ctxt THEN'  time_frame_inference_tac ctxt) ))                                           
 
   (* Apply consequence rule if postcondition is not a schematic var *)
   fun app_post_cons_tac ctxt i st = 
@@ -705,12 +696,9 @@ struct
           FIRST' [resolve_tac ctxt d_thms, heap_rule_tac])) 
     ]))
   end; 
-  fun vcg_tac ctxt = REPEAT_DETERM' (print_tac ctxt THEN' vcg_step_tac ctxt)
+  fun vcg_tac ctxt = REPEAT_DETERM' (  vcg_step_tac ctxt)
                                           
-
-  fun print_tac2 s i st =
-    let val _ = tracing (s)
-    in all_tac st end
+ 
 
   (***********************************)
   (*        Automatic Solver         *)
@@ -718,14 +706,14 @@ struct
 
   fun sep_autosolve_tac do_pre do_post ctxt = let
     val pre_tacs = [
-      CHANGED o (print_tac2 "clarsimp" THEN' clarsimp_tac ctxt),
-      CHANGED o (print_tac2 "intros" THEN' REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI}))
+      CHANGED o (clarsimp_tac ctxt),
+      CHANGED o (REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI}))
     ];                                
     val main_tacs = [
       match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt,
       match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
     ];                                                       
-    val post_tacs = [print_tac2 "auto" THEN' SELECT_GOAL (auto_tac ctxt)];
+    val post_tacs = [   SELECT_GOAL (auto_tac ctxt)];
     val tacs = (if do_pre then pre_tacs else [])
       @ main_tacs 
       @ (if do_post then post_tacs else []);
