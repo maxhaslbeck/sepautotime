@@ -247,25 +247,6 @@ lemma frame_inference_finalize:
   apply assumption
   done
 
-subsection {* Entailment Solver *}
-lemma entails_solve_init:
-  "FI_QUERY P (Q*$T) true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true * $T"
-  "FI_QUERY P Q true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true"
-  "FI_QUERY P Q emp \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
-    apply (simp_all add: mult.assoc )   
-  by (simp add:  mult.commute)  
-
-lemma entails_solve_finalize:
-  "FI_RESULT M P emp true"
-  "FI_RESULT M emp emp emp"
-  by (auto simp add: fi_match_entails intro: ent_star_mono)
-
-
-named_theorems sep_dflt_simps "Seplogic: Default simplification rules for automated solvers"
-named_theorems sep_eintros "Seplogic: Intro rules for entailment solver"
-named_theorems sep_heap_rules "Seplogic: VCG heap rules"
-named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
-
 
 
 subsection {* Frame Inference *}
@@ -282,6 +263,7 @@ lemma timeframe_inference_init:
   using assms apply (simp add: time_credit_add mult.assoc)
   apply(rotater) apply rotater apply rotatel apply rotatel apply(rule match_first)  apply rotatel apply (rule match_first)
   .
+
 lemma timeframe_inference_init_normalize:
  "emp * $T\<Longrightarrow>\<^sub>A F * $T' \<Longrightarrow> $T\<Longrightarrow>\<^sub>A F * $T'"
   by auto
@@ -289,6 +271,33 @@ lemma timeframe_inference_init_normalize:
 
 lemma dollarD: "a = b \<Longrightarrow> $a \<Longrightarrow>\<^sub>A $b"
   by simp
+
+subsection {* Entailment Solver *}
+lemma entails_solve_init:
+  "FI_QUERY P (Q*$T) true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true * $T"
+  "FI_QUERY P Q true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true"
+  "FI_QUERY P Q emp \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
+    apply (simp_all add: mult.assoc )   
+  by (simp add:  mult.commute)  
+
+lemma entails_solve_init_time:
+  "FI_QUERY P (Q) true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  P * $T \<Longrightarrow>\<^sub>A Q * true * $T'"
+  apply simp 
+    by (smt ent_star_mono gc_time le_add1 linordered_field_class.sign_simps(5) linordered_field_class.sign_simps(6) merge_true_star_ctx) 
+
+
+lemma entails_solve_finalize:
+  "FI_RESULT M P emp true"
+  "FI_RESULT M emp emp emp"
+  by (auto simp add: fi_match_entails intro: ent_star_mono)
+
+
+named_theorems sep_dflt_simps "Seplogic: Default simplification rules for automated solvers"
+named_theorems sep_eintros "Seplogic: Intro rules for entailment solver"
+named_theorems sep_heap_rules "Seplogic: VCG heap rules"
+named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
+
+
 
 
 ML \<open>
@@ -651,9 +660,22 @@ struct
         (put_simpset HOL_ss ctxt addsimps @{thms solve_ent_preprocess_simps});
 
     val match_entails_tac =
+      FIRST' [
+
+      resolve_tac ctxt @{thms entails_solve_init_time} 
+      THEN' match_frame_tac (atom_solve_tac ctxt)  ctxt
+      THEN' resolve_tac ctxt @{thms entails_solve_finalize} 
+      THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
+      THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
+
+  
+      THEN' (resolve_tac ctxt @{thms TI_QUERYD})
+      THEN' SOLVED' (split_nat_tac ctxt),
+    
       resolve_tac ctxt @{thms entails_solve_init} 
       THEN' match_frame_tac (atom_solve_tac ctxt)  ctxt
-      THEN' resolve_tac ctxt @{thms entails_solve_finalize};
+      THEN' resolve_tac ctxt @{thms entails_solve_finalize}
+       ];
   in
     preprocess_entails_tac
     THEN' (TRY o
@@ -939,7 +961,15 @@ lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarro
 lemmas [sep_eintros] = impI conjI exI
 
     declare make_rule [sep_heap_rules]
+
  
+
+lemma "P * $4 \<Longrightarrow>\<^sub>A P * true * $3"
+    "P * $3 \<Longrightarrow>\<^sub>A P * true"
+    "P * Q *  $(f x * 4 + 3) \<Longrightarrow>\<^sub>A Q * P * true * $(f x * 4)"
+    "P * Q *  $(g y * 6 + f x * 4 + 3) \<Longrightarrow>\<^sub>A Q * P * true * $(g y * 2 + f x * 4)"
+  by solve_entails+
+
 
 
 end
