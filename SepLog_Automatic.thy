@@ -754,6 +754,15 @@ end; \<open>struct\<close>
 
 
 
+method_setup vcg = {* 
+  Scan.lift (Args.mode "ss") --
+  Method.sections Seplogic_Auto.vcg_modifiers >>
+  (fn (ss,_) => fn ctxt => SIMPLE_METHOD' (
+  CHANGED o (
+    if ss then Seplogic_Auto.vcg_step_tac ctxt 
+    else Seplogic_Auto.vcg_tac ctxt
+  )
+)) *} "Seplogic: Verification Condition Generator"
 
 method_setup sep_auto = 
   {* Scan.lift (Args.mode "nopre" -- Args.mode "nopost" -- Args.mode "plain") 
@@ -945,6 +954,12 @@ lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<
 
 lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
   by (sep_auto) 
+
+
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
+  
+  apply(vcg (ss))
+  by (sep_auto)
 
 
 lemma prod_split_rule: "(\<And>a b. x = (a, b) \<Longrightarrow> <P> f a b <Q>) \<Longrightarrow> <P> case x of (a, b) \<Rightarrow> f a b <Q>"
