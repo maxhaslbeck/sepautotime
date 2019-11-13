@@ -1,5 +1,5 @@
 theory SepLog_Misc
-imports "SepLogicTime_RBTreeBasic.SepAuto"
+imports "SepLogicTime_RBTreeBasic.SepAuto_Time"
 begin
 
 lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
