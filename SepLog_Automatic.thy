@@ -1,5 +1,5 @@
 theory SepLog_Automatic
-imports "SepLogicTime_RBTreeBasic.SepAuto" 
+imports "SepLogicTime_RBTreeBasic.SepAuto_Time" 
   "HOL-Eisbach.Eisbach" "SepLog_Misc"   Automatic_Refinement.Automatic_Refinement
  
 begin
@@ -164,8 +164,8 @@ text {* A query to the frame matcher. Contains the assertions
 
 definition [simp]: "FI_QUERY P Q F \<equiv> P \<Longrightarrow>\<^sub>A Q*F"
 
-abbreviation "fi_m_fst M \<equiv> foldr (( * )) (map fst M) emp"
-abbreviation "fi_m_snd M \<equiv> foldr (( * )) (map snd M) emp"
+abbreviation "fi_m_fst M \<equiv> foldr ((*)) (map fst M) emp"
+abbreviation "fi_m_snd M \<equiv> foldr ((*)) (map snd M) emp"
 abbreviation "fi_m_match M \<equiv> (\<forall>(p,q)\<in>set M. p \<Longrightarrow>\<^sub>A q)"
 
 text {* A result of the frame matcher. Contains a list of matching pairs,
@@ -415,7 +415,7 @@ struct
     (*val _ = tracing (tr_term redex);*)
     val export = singleton (Variable.export ctxt' ctxt)
 
-    fun mk_star t1 t2 = @{term "( * )::assn \<Rightarrow> _ \<Rightarrow> _"}$t2$t1;
+    fun mk_star t1 t2 = @{term "(*)::assn \<Rightarrow> _ \<Rightarrow> _"}$t2$t1;
 
     fun mk_star' NONE NONE = NONE
     | mk_star' (SOME t1) NONE  = SOME t1
@@ -630,9 +630,9 @@ struct
 
   (* Extract existential quantifiers from entailment goal *)
   fun extract_ex_tac ctxt i st = let
-    fun count_ex (Const (@{const_name SepAuto.entails},_)$_$c) = 
+    fun count_ex (Const (@{const_name SepAuto_Time.entails},_)$_$c) = 
       count_ex c RS @{thm HOL.mp}
-    | count_ex (Const (@{const_name SepAuto.ex_assn},_)$Abs (_,_,t))
+    | count_ex (Const (@{const_name SepAuto_Time.ex_assn},_)$Abs (_,_,t))
       = count_ex t RS @{thm enorm_exI'}
     | count_ex _ = @{thm imp_refl};
 
@@ -854,18 +854,18 @@ lemma ureturn_rule[sep_decon_rules]: "<P> ureturn x <\<lambda>r. P * \<up>(r = x
     apply(rule frame_rule[OF return_rule, where R=P] )
   by(auto simp: zero_time)   
 
-declare SepAuto.return_rule [sep_heap_rules] 
+declare SepAuto_Time.return_rule [sep_heap_rules] 
 declare bind_rule [sep_decon_rules]
                                              
 (* sep auto expects pure assertions to be pulled out in the pre condition TODO: is this correct? *)
-lemma nth_rule'[sep_heap_rules]: "(i < length xs) \<Longrightarrow> <a \<mapsto>\<^sub>a xs * $ 1 > Array.nth a i <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = xs ! i)>"
+lemma nth_rule'[sep_heap_rules]: "(i < length xs) \<Longrightarrow> <a \<mapsto>\<^sub>a xs * $ 1 > Array_Time.nth a i <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = xs ! i)>"
   apply(rule pre_rule[OF _ nth_rule]) by sep_auto
    
 
       
 declare new_rule [sep_heap_rules]
 thm new_rule
-schematic_goal "<timeCredit_assn 1> Array.new 0 0 <?Q8>"
+schematic_goal "<timeCredit_assn 1> Array_Time.new 0 0 <?Q8>"
   by(sep_auto simp del: add_Suc One_nat_def) 
 
 lemma "A \<Longrightarrow>\<^sub>A A"
@@ -947,7 +947,7 @@ thm false_absorb
 
 
 
-lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
+lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array_Time.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
   apply(rule pre_rule[OF _ upd_rule])  
   by solve_entails
 

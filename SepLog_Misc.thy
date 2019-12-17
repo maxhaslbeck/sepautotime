@@ -1,5 +1,5 @@
 theory SepLog_Misc
-imports "SepLogicTime_RBTreeBasic.SepAuto"
+imports "SepLogicTime_RBTreeBasic.SepAuto_Time"
 begin
 
 lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
@@ -210,7 +210,7 @@ lemma ent_disjI2': "A\<Longrightarrow>\<^sub>AC \<Longrightarrow> A\<Longrightar
 subsection \<open>New command ureturn\<close>
 
 definition ureturn :: "'a \<Rightarrow> 'a Heap" where
-  [code del]: "ureturn x = Heap_Monad.heap (\<lambda>h. (x,h,0))"
+  [code del]: "ureturn x = Heap_Time_Monad.heap (\<lambda>h. (x,h,0))"
 
 lemma execute_ureturn [execute_simps]:
   "execute (ureturn x) = Some \<circ> (\<lambda>h. (x,h,0))"
