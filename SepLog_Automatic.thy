@@ -4,7 +4,27 @@ imports "SepLogicTime_RBTreeBasic.SepAuto_Time"
  
 begin
 
- 
+
+
+
+text \<open>Two disjoint parts of the heap cannot be pointed to by the 
+  same pointer\<close>
+lemma sngr_same_false[simp]: 
+  "p \<mapsto>\<^sub>r x * p \<mapsto>\<^sub>r y = false" 
+  unfolding times_assn_def   sngr_assn_def pure_assn_def
+  apply(rule arg_cong[where f=Abs_assn])
+  apply(rule arg_cong[where f=Assn])
+  apply(rule ext) 
+  by (metis (mono_tags) Int_iff all_not_in_conv empty_Collect_eq models_def singleton_conv2 sngr_assn_def sngr_assn_rule)
+
+lemma snga_same_false[simp]: 
+  "p \<mapsto>\<^sub>a x * p \<mapsto>\<^sub>a y = false"
+  unfolding times_assn_def   snga_assn_def pure_assn_def
+  apply(rule arg_cong[where f=Abs_assn])
+  apply(rule arg_cong[where f=Assn])
+  apply(rule ext) 
+  by (metis (mono_tags) Int_iff all_not_in_conv empty_Collect_eq models_def singleton_conv2 snga_assn_def snga_assn_rule)
+
 subsection \<open>stuff for VCG\<close>
 
 lemma is_hoare_triple: "<P> c <Q> \<Longrightarrow> <P> c <Q>" .
@@ -133,7 +153,18 @@ lemmas solve_ent_preprocess_simps =
   ent_pure_post_iff ent_pure_post_iff_sng ent_pure_pre_iff ent_pure_pre_iff_sng
 lemmas ent_refl = entails_triv
 lemmas ent_triv = ent_true ent_false
-lemmas norm_assertion_simps = assn_one_left  time_credit_add[symmetric] s f
+lemmas norm_assertion_simps =
+  (* Neutral elements *)
+  mult_1[where 'a=assn] mult_1_right[where 'a=assn]
+
+  (* Zero elements *)
+  false_absorb star_false_right
+
+  time_credit_add[symmetric]
+  s f
+
+  (* Duplicated References *)
+    sngr_same_false snga_same_false
 
 (*
 theorem solve_ent_preprocess_simps:
@@ -280,11 +311,21 @@ lemma entails_solve_init:
     apply (simp_all add: mult.assoc )   
   by (simp add:  mult.commute)  
 
-lemma entails_solve_init_time:
+lemma entails_solve_init_time':
   "FI_QUERY P (Q) true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  P * $T \<Longrightarrow>\<^sub>A Q * true * $T'"
   apply simp 
     by (smt ent_star_mono gc_time le_add1 linordered_field_class.sign_simps(5) linordered_field_class.sign_simps(6) merge_true_star_ctx) 
 
+lemma entails_solve_init_time:
+  "FI_QUERY P (Q) true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  P * $T \<Longrightarrow>\<^sub>A Q * true * $T'"
+  "FI_QUERY P emp true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  P * $T \<Longrightarrow>\<^sub>A true * $T'"
+  "FI_QUERY emp Q true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  $T \<Longrightarrow>\<^sub>A Q * true * $T'"
+  "FI_QUERY emp Q true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  $T \<Longrightarrow>\<^sub>A true * $T'"
+  subgoal by(fact entails_solve_init_time')
+  subgoal using entails_solve_init_time'[where Q=emp] by simp
+  subgoal using entails_solve_init_time'[where P=emp] by simp
+  subgoal using entails_solve_init_time'[where P=emp and Q=emp] by simp
+  done
 
 lemma entails_solve_finalize:
   "FI_RESULT M P emp true"
@@ -412,7 +453,6 @@ struct
 
   fun assn_simproc_fun ctxt credex = let
     val ([redex],ctxt') = Variable.import_terms true [Thm.term_of credex] ctxt;
-    (*val _ = tracing (tr_term redex);*)
     val export = singleton (Variable.export ctxt' ctxt)
 
     fun mk_star t1 t2 = @{term "(*)::assn \<Rightarrow> _ \<Rightarrow> _"}$t2$t1;
@@ -440,7 +480,7 @@ struct
       | Const (@{const_name "snga_assn"},_)$_$_
         => ((has_true,ps,ts,t::ptrs),SOME t)
       | Const (@{const_name "timeCredit_assn"},_)$_
-        => let val _ = () (* tracing ("aha") *); in ((has_true,ps,t::ts,ptrs),NONE) end
+        => ((has_true,ps,t::ts,ptrs),NONE)
       | Const (@{const_name "top_assn"},_)
         => ((true,ps,ts,ptrs),NONE)
       | (inf_op as Const (@{const_name "and_assn"},_))$t1$t2
@@ -450,12 +490,12 @@ struct
       fun normalizer t = case dfs_opr @{const_name "Groups.times_class.times"}
         ep_tr (false,[],[],[]) t 
       of 
-        ((has_true,ps,ts,ptrs),rt) => let val _ = () (* tracing ("aha1") *); in
-            ((has_true,rev ps,rev ts,ptrs),rt)end;
+        ((has_true,ps,ts,ptrs),rt) => 
+            ((has_true,rev ps,rev ts,ptrs),rt);
 
       fun normalize_core t = let 
         val ((has_true,pures,tis,ptrs),rt) = normalizer t;
-        val similar = find_similar ptrs_key ptrs;
+        val similar =  find_similar ptrs_key ptrs  ;
         val true_t = if has_true then SOME @{term "top_assn"} 
           else NONE;
         val pures' = case pures of 
@@ -468,7 +508,8 @@ struct
         case similar of NONE => the ((mk_star' pures' (mk_star' tis' (mk_star' true_t rt))) )
         | SOME (t1,t2) => let
             val t_stripped = remove_term t1 (remove_term t2 t);
-          in mk_star t_stripped (mk_star t1 t2) end
+          in mk_star t_stripped (mk_star t1 t2) 
+          end
       end;
 
       fun skip_ex ((exq as Const (@{const_name "ex_assn"},_))$(Abs (n,ty,t))) =
@@ -479,7 +520,7 @@ struct
       val ty = fastype_of1 (map #2 bs,t');
     in
       if ty = @{typ assn} then
-        Logic.rlist_abs (bs,skip_ex t')
+        Logic.rlist_abs (bs,skip_ex t')  
       else t
     end;
 
@@ -584,13 +625,16 @@ struct
   (***********************************)
 
   fun mytac ctxt a b = let 
+        val _ = tracing (Syntax.string_of_term ctxt a)
+      val _ = tracing (Syntax.string_of_term ctxt b) 
       val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
    in
          (if length ths > 0 then  (EqSubst.eqsubst_tac ctxt [1] ths 
               THEN' FIRST' [ resolve_tac ctxt @{thms refl}, 
                              SOLVED' (simp_tac (put_simpset HOL_ss ctxt  addsimps @{thms mult.commute})) ] ) 1  else no_tac) end 
 
-  fun split_nat_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
+  fun split_nat_tac ctxt =
+     Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
         SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
           @{mpat "Trueprop (?a = ?b + _)"} => 
             mytac ctxt a b 
@@ -598,10 +642,26 @@ struct
         ))
       ) ctxt  
  
+  (* assumes a goal of form "a = b + c",
+      normalizes a and b using NatRing.norm_full *)
+  fun normalize_time_goal ctxt = 
+     (CONVERSION (Conv.params_conv ~1 (fn _ =>
+              (Conv.concl_conv ~1 
+               (Conv.arg_conv (Conv.every_conv
+              [Conv.arg1_conv(NatRing.norm_full),
+             Conv.arg_conv(Conv.arg1_conv(NatRing.norm_full)),
+             Conv.all_conv])))) ctxt)
+    ) 
+
 
   (***********************************)
   (*         Time Frame Inference   *)
   (***********************************)
+
+  fun print_tac' ctxt i st =
+    let val _ = tracing ("..>");
+        val _ = tracing (Thm.string_of_thm ctxt st)
+    in all_tac st end
 
   fun time_frame_inference_tac ctxt =
     TRY o resolve_tac ctxt @{thms timeframe_inference_init_normalize}
@@ -609,17 +669,22 @@ struct
     resolve_tac ctxt @{thms timeframe_inference_init} 
     (* normal frame inference *)
     THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
-    THEN' resolve_tac ctxt @{thms frame_inference_finalize}
 
-    (* time_frame inference *) 
+    THEN' (resolve_tac ctxt @{thms frame_inference_finalize})
+      (* possible non determinism here, countered by the
+        application of safe at the end *)
+
     THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
     THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
 
+    THEN' (resolve_tac ctxt @{thms TI_QUERYD}) 
 
-    THEN' (resolve_tac ctxt @{thms TI_QUERYD})
-    THEN' SOLVED' (split_nat_tac ctxt)
- 
-    THEN' resolve_tac ctxt @{thms refl}  
+    THEN' normalize_time_goal ctxt  
+
+    THEN' split_nat_tac ctxt
+   
+    THEN' FIRST' [resolve_tac ctxt @{thms refl} ,
+        TRY o (safe_steps_tac ctxt) THEN' resolve_tac ctxt @{thms refl}  ]
 
     ;
 
@@ -638,7 +703,7 @@ struct
 
     val concl = Logic.concl_of_goal (Thm.prop_of st) i |> HOLogic.dest_Trueprop;
     val thm = count_ex concl;
-    val _ = tracing (Thm.string_of_thm ctxt thm);
+    (* val _ = tracing (Thm.string_of_thm ctxt thm); *)
   in
     (TRY o REPEAT_ALL_NEW (match_tac ctxt @{thms ent_ex_preI}) THEN'
      resolve_tac ctxt [thm]) i st
@@ -668,8 +733,8 @@ struct
       THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
       THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
 
-  
       THEN' (resolve_tac ctxt @{thms TI_QUERYD})
+      THEN' normalize_time_goal ctxt  
       THEN' SOLVED' (split_nat_tac ctxt),
     
       resolve_tac ctxt @{thms entails_solve_init} 
@@ -694,7 +759,7 @@ struct
   fun heap_rule_tac ctxt h_thms =  
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
-    ( dflt_tac ctxt THEN'  time_frame_inference_tac ctxt) ))                                           
+    ( dflt_tac ctxt THEN' (fn k => print_tac ctxt "AAAH") THEN'  time_frame_inference_tac ctxt) ))                                           
 
   (* Apply consequence rule if postcondition is not a schematic var *)
   fun app_post_cons_tac ctxt i st = 
@@ -743,16 +808,30 @@ struct
     REPEAT_DETERM' (CHANGED o FIRST' tacs)
   end;
 
+  fun sep_step_autosolve_tac do_pre do_post ctxt = let
+    val pre_tacs = [
+      CHANGED o (clarsimp_tac ctxt),
+      CHANGED o (REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI}))
+    ];                                
+    val main_tacs = [
+      match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_step_tac ctxt,
+      match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
+    ];                                                       
+    val post_tacs = [   SELECT_GOAL (auto_tac ctxt)];
+    val tacs = (if do_pre then pre_tacs else [])
+      @ main_tacs 
+      @ (if do_post then post_tacs else []);
+  in
+      (CHANGED o FIRST' tacs)
+  end;
+
  
 
 
 end; \<open>struct\<close>
 
 
-\<close> 
-
-
-
+\<close>  
 
 method_setup vcg = \<open>
   Scan.lift (Args.mode "ss") --
@@ -769,6 +848,15 @@ method_setup sep_auto =
       --| Method.sections Seplogic_Auto.sep_auto_modifiers >>
   (fn ((nopre,nopost),plain) => fn ctxt => SIMPLE_METHOD' (
     CHANGED o Seplogic_Auto.sep_autosolve_tac 
+      ((not nopre) andalso (not plain)) 
+      ((not nopost) andalso (not plain)) ctxt
+  ))\<close> "Seplogic: Automatic solver"
+
+method_setup sep_auto_step = 
+  \<open>Scan.lift (Args.mode "nopre" -- Args.mode "nopost" -- Args.mode "plain") 
+      --| Method.sections Seplogic_Auto.sep_auto_modifiers >>
+  (fn ((nopre,nopost),plain) => fn ctxt => SIMPLE_METHOD' (
+    CHANGED o Seplogic_Auto.sep_step_autosolve_tac 
       ((not nopre) andalso (not plain)) 
       ((not nopost) andalso (not plain)) ctxt
   ))\<close> "Seplogic: Automatic solver"
@@ -802,11 +890,24 @@ lemma "QA \<Longrightarrow> (P \<Longrightarrow>\<^sub>A \<exists>\<^sub>Ax. Q x
       apply(tactic \<open>IF_EXGOAL (Seplogic_Auto.extract_ex_tac @{context}) 1\<close>)
   oops
 
+  thm new_rule
+schematic_goal "\<And>x. P \<Longrightarrow> Q \<Longrightarrow>   <x \<mapsto>\<^sub>a [0..<n] * $ (n * 15 + 11)> Array_Time.new n 0 <?Q18 x>"
+  by (sep_auto heap: new_rule)
 
 
 lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
   by (solve_entails)
 
+
+schematic_goal "\<And>end start' start_next x' k k_next start'a start_nexta x'a enda start'b start_nextb x'b ka k_nexta start'c start_nextc x'c.
+       start_nextc = Some p' \<and>
+       k_nexta = enda \<and> k_nexta = Some start'c \<and> p' = start'b \<and> start_nexta = Some q' \<and> k_next = end \<and> k_next = Some start'a \<and> q' = start' \<Longrightarrow>
+       <start'b \<mapsto>\<^sub>r Cell x'b start_nextb enda * R a x'b *
+        (dll_seg R cs' start_nextb (Some start'b) ka enda *  
+        (start' \<mapsto>\<^sub>r Cell x' start_next end * R u x' * (dll_seg R vs' start_next (Some start') k end * (start'a \<mapsto>\<^sub>r Cell x'a (Some start') k * R w x'a)))) *
+        $ 1>
+       !start'b <?Q20 end start' start_next x' k end start'a (Some start') x'a enda start'b start_nextb x'b ka enda start'c (Some start'b) x'c>"
+  apply (vcg (ss) heap: lookup_rule) oops
 
 declare entt_refl' [simp]
 
@@ -819,6 +920,17 @@ lemma "\<And>x. M = 0 \<Longrightarrow> (\<And>j i. c (i, j) = 0) \<Longrightarr
 schematic_goal "timeCredit_assn (B* A * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (B* A + 1)"
   by timeframeinf  
  
+schematic_goal "ya \<mapsto>\<^sub>r Cell x' (Some end) (Some end) * (R x x' * end \<mapsto>\<^sub>r Cell y' (Some ya) (Some ya) * R y y') * $ 9 \<Longrightarrow>\<^sub>A
+        ?F62 end x' y' (Cell x' (Some end) (Some end)) ya * $ 1"
+  by timeframeinf  
+
+schematic_goal "\<And>end x' y' xa ya.
+       p = Some ya \<Longrightarrow>
+       xa = Cell x' (Some end) (Some end) \<Longrightarrow>
+       Some ya \<noteq> Some end \<Longrightarrow>
+       ya \<mapsto>\<^sub>r Cell x' (Some end) (Some end) * (R x x' * end \<mapsto>\<^sub>r Cell y' (Some ya) (Some ya) * R y y') * $ 9 \<Longrightarrow>\<^sub>A
+       ?F62 end x' y' (Cell x' (Some end) (Some end)) ya * $ 1"
+  apply timeframeinf done
 
 
 (* timeframeinf can solve problems of that form: A * $T \<Longrightarrow>\<^sub>A B * ?F * $T' *)
@@ -830,16 +942,35 @@ schematic_goal "A * C * $2  \<Longrightarrow>\<^sub>A A * ?F * $1"
 
 schematic_goal "a \<mapsto>\<^sub>a xs * $ 1 \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F24 (xs ! i)   * $ 1"  
   by timeframeinf 
+thm mult_1
+
+schematic_goal "a \<mapsto>\<^sub>a xs * $ (2 + 3 * ff + (5 * (3*ff+2)))
+           \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F24   * $ (1 + ff * 2 + 4 * ff)"  
+  by timeframeinf 
 
 
 context begin
   definition "fffa = (10::nat)"
-   
+ 
+lemma "F * $(xx*(3+7+yy)) \<Longrightarrow>\<^sub>A F * $(xx*2+yy*xx) * true"
+  by (solve_entails) 
+  
+
   schematic_goal "(3::nat) + 3 * fffa + 6 * 7 = 1 + ?F"
     apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
     done
   
   schematic_goal "(2::nat) + 3 * fffa  = 1 + ?F"
+    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
+    done
+
+  schematic_goal "(2::nat) + fffa * 32 = 1 + fffa * 1 + ?F"
+    apply(tactic \<open>Seplogic_Auto.normalize_time_goal @{context} 1\<close>)
+    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
+    done
+
+  schematic_goal "(2::nat) + 3 * fffa  = 1 + 2 * fffa + ?F"
+    apply(tactic \<open>Seplogic_Auto.normalize_time_goal @{context} 1\<close>)
     apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
     done
 end 
