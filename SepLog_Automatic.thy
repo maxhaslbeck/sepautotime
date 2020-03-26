@@ -1,50 +1,22 @@
 theory SepLog_Automatic
-imports "SepLogicTime_RBTreeBasic.SepAuto_Time" 
+imports "Imperative_HOL_Time.SepAuto_Time" 
   "HOL-Eisbach.Eisbach" "SepLog_Misc"   Automatic_Refinement.Automatic_Refinement
  
 begin
 
 
+subsection \<open>Experiment TOMOVE\<close>
+lemma run_and_execute: "(\<forall>\<sigma> t r. run c (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
+        \<longleftrightarrow> (\<exists>h' t r. execute c h = Some (r, h', t) \<and> P h' r t)"  
+  apply rule
+  subgoal by (metis option.sel run.intros(2) run.intros(3) timeFrame.elims) 
+  subgoal by (metis (mono_tags) not_None_eq option.sel prod.sel(1) prod.sel(2) run_to_execute) 
+  done
 
-
-text \<open>Two disjoint parts of the heap cannot be pointed to by the 
-  same pointer\<close>
-lemma sngr_same_false[simp]: 
-  "p \<mapsto>\<^sub>r x * p \<mapsto>\<^sub>r y = false" 
-  unfolding times_assn_def   sngr_assn_def pure_assn_def
-  apply(rule arg_cong[where f=Abs_assn])
-  apply(rule arg_cong[where f=Assn])
-  apply(rule ext) 
-  by (metis (mono_tags) Int_iff all_not_in_conv empty_Collect_eq models_def singleton_conv2 sngr_assn_def sngr_assn_rule)
-
-lemma snga_same_false[simp]: 
-  "p \<mapsto>\<^sub>a x * p \<mapsto>\<^sub>a y = false"
-  unfolding times_assn_def   snga_assn_def pure_assn_def
-  apply(rule arg_cong[where f=Abs_assn])
-  apply(rule arg_cong[where f=Assn])
-  apply(rule ext) 
-  by (metis (mono_tags) Int_iff all_not_in_conv empty_Collect_eq models_def singleton_conv2 snga_assn_def snga_assn_rule)
 
 subsection \<open>stuff for VCG\<close>
 
 lemma is_hoare_triple: "<P> c <Q> \<Longrightarrow> <P> c <Q>" .
-
-lemma fi_rule:
-  assumes CMD: "<P> c <Q>"
-  assumes FRAME: "Ps \<Longrightarrow>\<^sub>A P * F"
-  shows "<Ps> c <\<lambda>x. Q x * F>"
-  apply (rule pre_rule[rotated])
-  apply (rule frame_rule)
-  apply (rule CMD)
-  apply (rule FRAME)
-  done
-
-lemma cons_post_rule: "<P> c <Q> \<Longrightarrow> (\<And>x. Q x \<Longrightarrow>\<^sub>A Q' x) \<Longrightarrow> <P> c <Q'>"
-  using post_rule by blast
-
-lemma ent_pure_pre_iff[simp]: "(P*\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (P \<Longrightarrow>\<^sub>A Q))"
-  unfolding entails_def
-  by (auto   )
 
 theorem normalize_rules:
            "\<And>P. (\<And>x. <P x> f <Q>) \<Longrightarrow> <\<exists>\<^sub>Ax. P x> f <Q>"
@@ -55,24 +27,6 @@ theorem normalize_rules:
   subgoal using norm_pre_pure_iff2 by blast
   done
     
-subsection \<open>\<close>
-
-lemma ent_pure_pre_iff_sng[simp]: 
-  "(\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (emp \<Longrightarrow>\<^sub>A Q))"
-  using ent_pure_pre_iff[where P=emp]
-  by simp
-
-lemma ent_pure_post_iff[simp]: 
-  "(P \<Longrightarrow>\<^sub>A Q*\<up>b) \<longleftrightarrow> ((\<forall>h. h\<Turnstile>P \<longrightarrow> b) \<and> (P \<Longrightarrow>\<^sub>A Q))"
-  unfolding entails_def
-  by (auto)
-
-lemma ent_pure_post_iff_sng[simp]: 
-  "(P \<Longrightarrow>\<^sub>A \<up>b) \<longleftrightarrow> ((\<forall>h. h\<Turnstile>P \<longrightarrow> b) \<and> (P \<Longrightarrow>\<^sub>A emp))"
-  using ent_pure_post_iff[where Q=emp]
-  by simp 
-
-
 
 subsection "Rotate method"
 
@@ -122,13 +76,6 @@ lemma match_first: "A \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> * A
 lemma match_rest: "emp \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma> * B"  
   using match_first by fastforce 
 
-lemma run_and_execute: "(\<forall>\<sigma> t r. run c (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
-        \<longleftrightarrow> (\<exists>h' t r. execute c h = Some (r, h', t) \<and> P h' r t)"  
-  apply rule
-  subgoal by (metis option.sel run.intros(2) run.intros(3) timeFrame.elims) 
-  subgoal by (metis (mono_tags) not_None_eq option.sel prod.sel(1) prod.sel(2) run_to_execute) 
-  done
-
 
 
 
@@ -144,11 +91,7 @@ lemma enorm_exI': (* Incomplete, as chosen x may depend on heap! *)
   by (metis ent_ex_postI)
 
 
-lemma s: "(\<exists>\<^sub>Ax. Q x) * R = (\<exists>\<^sub>Ax. Q x * R)" by auto
-lemma f: "\<up> a * \<up> b = \<up> (a \<and> b)" 
-  by (simp add: pure_conj)   
 
-lemma ent_false: "false \<Longrightarrow>\<^sub>A P" by simp  
 lemmas solve_ent_preprocess_simps = 
   ent_pure_post_iff ent_pure_post_iff_sng ent_pure_pre_iff ent_pure_pre_iff_sng
 lemmas ent_refl = entails_triv
@@ -161,10 +104,10 @@ lemmas norm_assertion_simps =
   false_absorb star_false_right
 
   time_credit_add[symmetric]
-  s f
+  ex_assn_move_out(1) pure_conj[symmetric]
 
   (* Duplicated References *)
-    sngr_same_false snga_same_false
+  sngr_same_false snga_same_false
 
 (*
 theorem solve_ent_preprocess_simps:
@@ -673,7 +616,7 @@ struct
     THEN' (resolve_tac ctxt @{thms frame_inference_finalize})
       (* possible non determinism here, countered by the
         application of safe at the end *)
-
+    (*THEN' (fn k => print_tac ctxt "aaa")*)
     THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
     THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
 
@@ -759,7 +702,7 @@ struct
   fun heap_rule_tac ctxt h_thms =  
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
-    ( dflt_tac ctxt THEN' (fn k => print_tac ctxt "AAAH") THEN'  time_frame_inference_tac ctxt) ))                                           
+    ( dflt_tac ctxt (*THEN' (fn k => print_tac ctxt "AAAH")*) THEN'  time_frame_inference_tac ctxt) ))                                           
 
   (* Apply consequence rule if postcondition is not a schematic var *)
   fun app_post_cons_tac ctxt i st = 
@@ -867,17 +810,24 @@ method_setup solve_entails = \<open>
   CHANGED o Seplogic_Auto.solve_entails_tac ctxt
 ))\<close> "Seplogic: Entailment Solver"
 
-method_setup timeframeinf = \<open>
+method_setup time_frame_inference = \<open>
   Method.sections Seplogic_Auto.solve_entails_modifiers >>
   (fn _ => fn ctxt => SIMPLE_METHOD' (
   CHANGED o Seplogic_Auto.time_frame_inference_tac ctxt
 ))\<close> "Seplogic: Frame Inference with Time Inference"
  
+method_setup frame_inference = \<open> 
+  Method.sections Seplogic_Auto.solve_entails_modifiers >>
+  (fn _ => fn ctxt => SIMPLE_METHOD' (
+  CHANGED o Seplogic_Auto.frame_inference_tac ctxt
+)) \<close> "Seplogic: Frame Inference without Time Inference"
 
 simproc_setup assn_simproc 
   ( "h \<Turnstile> P" | "P\<Longrightarrow>\<^sub>AQ" | "P\<Longrightarrow>\<^sub>tQ" | "(P::assn) = Q" ) 
   = \<open>K Seplogic_Auto.assn_simproc_fun\<close>
 
+
+subsection \<open>Examples and Regression Tests\<close>
 
 lemma " P * $ 0 \<Longrightarrow>\<^sub>A P * true "
   by (solve_entails)
@@ -885,7 +835,6 @@ lemma " P * $ 0 \<Longrightarrow>\<^sub>A P * true "
 lemma " P * $ 1 \<Longrightarrow>\<^sub>A P * true * $ 1"
   by (solve_entails)
 
-thm enorm_exI'
 lemma "QA \<Longrightarrow> (P \<Longrightarrow>\<^sub>A \<exists>\<^sub>Ax. Q x)"
       apply(tactic \<open>IF_EXGOAL (Seplogic_Auto.extract_ex_tac @{context}) 1\<close>)
   oops
@@ -918,11 +867,11 @@ lemma "\<And>x. M = 0 \<Longrightarrow> (\<And>j i. c (i, j) = 0) \<Longrightarr
 
 
 schematic_goal "timeCredit_assn (B* A * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (B* A + 1)"
-  by timeframeinf  
+  by time_frame_inference  
  
 schematic_goal "ya \<mapsto>\<^sub>r Cell x' (Some end) (Some end) * (R x x' * end \<mapsto>\<^sub>r Cell y' (Some ya) (Some ya) * R y y') * $ 9 \<Longrightarrow>\<^sub>A
         ?F62 end x' y' (Cell x' (Some end) (Some end)) ya * $ 1"
-  by timeframeinf  
+  by time_frame_inference  
 
 schematic_goal "\<And>end x' y' xa ya.
        p = Some ya \<Longrightarrow>
@@ -930,23 +879,23 @@ schematic_goal "\<And>end x' y' xa ya.
        Some ya \<noteq> Some end \<Longrightarrow>
        ya \<mapsto>\<^sub>r Cell x' (Some end) (Some end) * (R x x' * end \<mapsto>\<^sub>r Cell y' (Some ya) (Some ya) * R y y') * $ 9 \<Longrightarrow>\<^sub>A
        ?F62 end x' y' (Cell x' (Some end) (Some end)) ya * $ 1"
-  apply timeframeinf done
+  apply time_frame_inference done
 
 
 (* timeframeinf can solve problems of that form: A * $T \<Longrightarrow>\<^sub>A B * ?F * $T' *)
 schematic_goal "\<up> (i < length xs) * a \<mapsto>\<^sub>a xs *  $2  \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F * $1"  
-  by timeframeinf
+  by time_frame_inference
 
 schematic_goal "A * C * $2  \<Longrightarrow>\<^sub>A A * ?F * $1"  
-  by timeframeinf
+  by time_frame_inference
 
 schematic_goal "a \<mapsto>\<^sub>a xs * $ 1 \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F24 (xs ! i)   * $ 1"  
-  by timeframeinf 
+  by time_frame_inference 
 thm mult_1
 
 schematic_goal "a \<mapsto>\<^sub>a xs * $ (2 + 3 * ff + (5 * (3*ff+2)))
            \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F24   * $ (1 + ff * 2 + 4 * ff)"  
-  by timeframeinf 
+  by time_frame_inference 
 
 
 context begin
@@ -976,28 +925,6 @@ lemma "F * $(xx*(3+7+yy)) \<Longrightarrow>\<^sub>A F * $(xx*2+yy*xx) * true"
 end 
 
 
-thm sep_eintros
-
-
-lemma ureturn_rule[sep_decon_rules]: "<P> ureturn x <\<lambda>r. P * \<up>(r = x)>" 
-  apply(rule post_rule)
-  apply(rule pre_rule[rotated])
-    apply(rule frame_rule[OF return_rule, where R=P] )
-  by(auto simp: zero_time)   
-
-declare SepAuto_Time.return_rule [sep_heap_rules] 
-declare bind_rule [sep_decon_rules]
-                                             
-(* sep auto expects pure assertions to be pulled out in the pre condition TODO: is this correct? *)
-lemma nth_rule'[sep_heap_rules]: "(i < length xs) \<Longrightarrow> <a \<mapsto>\<^sub>a xs * $ 1 > Array_Time.nth a i <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = xs ! i)>"
-  apply(rule pre_rule[OF _ nth_rule]) by sep_auto
-   
-
-      
-declare new_rule [sep_heap_rules]
-thm new_rule
-schematic_goal "<timeCredit_assn 1> Array_Time.new 0 0 <?Q8>"
-  by(sep_auto simp del: add_Suc One_nat_def) 
 
 lemma "A \<Longrightarrow>\<^sub>A A"
   by solve_entails
@@ -1011,36 +938,13 @@ lemma "A * B * C \<Longrightarrow>\<^sub>A B * A * true"
 
 
 
-lemma hand_commute[simp]: "A \<and>\<^sub>A B = B \<and>\<^sub>A A"
-using ent_conjE1 ent_conjE2 ent_conjI ent_iffI by auto
 
-lemma and_extract_pure_left_iff[simp]: "\<up>b \<and>\<^sub>A Q = (emp\<and>\<^sub>AQ)*\<up>b"
-  by (cases b) auto
-
-lemma and_extract_pure_left_ctx_iff[simp]: "P*\<up>b \<and>\<^sub>A Q = (P\<and>\<^sub>AQ)*\<up>b"
-  by (cases b) auto
-
-lemma and_extract_pure_right_iff[simp]: "P \<and>\<^sub>A \<up>b = (emp\<and>\<^sub>AP)*\<up>b"
-  by (cases b) (auto simp: hand_commute)  
-  
-
-lemma and_extract_pure_right_ctx_iff[simp]: "P \<and>\<^sub>A Q*\<up>b = (P\<and>\<^sub>AQ)*\<up>b"
-  by (cases b) auto
-
-lemma [simp]: "(x \<and>\<^sub>A y) \<and>\<^sub>A z = x \<and>\<^sub>A y \<and>\<^sub>A z" 
-  using assn_ext and_assn_conv by presburger 
-
- 
-
-lemma "h \<Turnstile> F * \<up> (a' = None) * F' \<Longrightarrow> G" apply simp oops
-lemma "true * true = G" apply simp oops
-lemma "G * true * F * true = H"  apply (simp )  oops
 
 lemma "$a * $b = $(a+b)"  
   by (simp add: time_credit_add)
 
 lemma "$1* \<up>g * G * $2 * $3 *true * F * true * \<up>ff * $4 * $5 = G * F * true * $ 10 * (\<up> g *  $5 * \<up> ff)"
-  by (simp add :time_credit_add[symmetric] )  
+  by (simp add : time_credit_add[symmetric] )  
 
 lemma "G * \<up>ff * true *  F   = H"  apply (simp )   oops
 
@@ -1057,64 +961,126 @@ lemma "\<up>a * B * \<up>c \<Longrightarrow>\<^sub>A G" apply (simp add:  del: p
 lemma "\<exists>\<^sub>Ab. \<up> ((b, a) \<in> R) *C *\<up>a \<Longrightarrow>\<^sub>A emp" apply simp oops
 
 
-declare mod_ex_dist [simp] 
-declare pure_assn_rule [simp] 
-
-thm ent_ex_preI ent_ex_postI
-
-
-text \<open>Apply precision rule with frame inference.\<close>
-lemma prec_frame:
-  assumes PREC: "precise P"
-  assumes M1: "h\<Turnstile>(R1 \<and>\<^sub>A R2)"
-  assumes F1: "R1 \<Longrightarrow>\<^sub>A P x p * F1"
-  assumes F2: "R2 \<Longrightarrow>\<^sub>A P y p * F2"
-  shows "x=y"
-  using preciseD[OF PREC] M1 F1 F2  
-  by (meson mod_and_dist entailsD)
-
-thm false_absorb 
-
-
-
-
-lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array_Time.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
-  apply(rule pre_rule[OF _ upd_rule])  
-  by solve_entails
-
-
-lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
-  by (sep_auto) 
-
-
-lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
-  
-  apply(vcg (ss))
-  by (sep_auto)
-
-
-lemma prod_split_rule: "(\<And>a b. x = (a, b) \<Longrightarrow> <P> f a b <Q>) \<Longrightarrow> <P> case x of (a, b) \<Rightarrow> f a b <Q>"
-  by(auto split: prod.split)
- 
-
-lemma prod_case_simp[sep_dflt_simps]: "(case (a, b) of (c, d) \<Rightarrow> f c d) = f a b" by simp
-
-lemma Let_rule[sep_decon_rules]: "(\<And>x. x = t \<Longrightarrow> <P> f x <Q>) \<Longrightarrow> <P> Let t f <Q>" 
-  by simp
-
-lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarrow> (\<not> b \<Longrightarrow> <P> g <Q>) \<Longrightarrow> <P> if b then f else g <Q>"
-  by auto 
-lemmas [sep_eintros] = impI conjI exI
-
-    declare make_rule [sep_heap_rules]
-
- 
-
 lemma "P * $4 \<Longrightarrow>\<^sub>A P * true * $3"
     "P * $3 \<Longrightarrow>\<^sub>A P * true"
     "P * Q *  $(f x * 4 + 3) \<Longrightarrow>\<^sub>A Q * P * true * $(f x * 4)"
     "P * Q *  $(g y * 6 + f x * 4 + 3) \<Longrightarrow>\<^sub>A Q * P * true * $(g y * 2 + f x * 4)"
   by solve_entails+
+
+
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * $ ((M * N * 9))  * $ (2)
+       \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * $ (Suc (Suc (9 * (N * M))))"
+  by (sep_auto) 
+
+
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * $ ((M * N * 9))  * $ (2)
+         \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
+  apply(vcg (ss))
+  by (sep_auto)
+
+
+subsection \<open>setup sep_auto rules\<close>
+
+thm sep_eintros
+
+lemma ureturn_rule: "<P> ureturn x <\<lambda>r. P * \<up>(r = x)>" 
+  apply(rule post_rule)
+  apply(rule pre_rule[rotated])
+    apply(rule frame_rule[OF return_rule, where R=P] )
+  by auto
+
+(* sep auto expects pure assertions to be pulled out in the pre condition TODO: is this correct? *)
+lemma nth_rule'[sep_heap_rules]:
+  "(i < length xs) \<Longrightarrow> <a \<mapsto>\<^sub>a xs * $ 1 > Array_Time.nth a i <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = xs ! i)>"
+  apply(rule pre_rule[OF _ nth_rule]) by sep_auto
+
+lemma upd_rule': "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array_Time.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
+  apply(rule pre_rule[OF _ upd_rule])  
+  by solve_entails
+
+lemma assert_rule_alt: 
+  "(Q \<Longrightarrow>\<^sub>A true * \<up>(P x)) \<Longrightarrow>
+     <Q * $1> assert P x <\<lambda> _. Q * \<up>(P x)>"
+  unfolding assert_def
+  apply (sep_auto heap: SepAuto_Time.return_rule decon: assert_rule)
+  unfolding hoare_triple_def
+  using mod_starD by blast
+
+
+
+lemma option_rule:
+  assumes "p = None \<Longrightarrow> <P> f <Q>"
+  assumes "\<And> x. p = Some x \<Longrightarrow> <P> g x <Q>"
+  shows "<P> case p of None \<Rightarrow> f | Some x \<Rightarrow> g x <Q>"
+  using assms by (sep_auto split: option.splits)
+
+lemma prod_rule:
+  assumes "\<And> x y. z = (x, y) \<Longrightarrow> <P> g x y <Q>"
+  shows "<P> case z of (x, y) \<Rightarrow> g x y <Q>"
+  using assms by (sep_auto split: prod.splits)
+
+lemma prod_pre_split: 
+  assumes "\<And> x y. <P x y * \<up> (p = (x, y))> f <Q>"
+  shows "<case p of (x, y) \<Rightarrow> P x y> f <Q>"
+proof (cases p)
+  case [simp]: (Pair x y)
+  have "P x y * \<up> (p = (x, y)) = (case p of (x, y) \<Rightarrow> P x y)" by simp
+  then show ?thesis using assms[of x y] by simp
+qed
+
+lemmas prod_split_rule = prod_rule
+
+
+lemma If_rule:
+  "(b \<Longrightarrow> <P> f <Q>) \<Longrightarrow> (\<not> b \<Longrightarrow> <P> g <Q>) \<Longrightarrow> <P> if b then f else g <Q>"
+  by auto 
+
+lemma Let_rule: "(\<And>x. x = t \<Longrightarrow> <P> f x <Q>) \<Longrightarrow> <P> Let t f <Q>" 
+  by simp
+
+
+lemma prod_case_simp[sep_dflt_simps]:
+  "(case (a, b) of (c, d) \<Rightarrow> f c d) = f a b" by simp
+
+
+lemmas [sep_decon_rules] = 
+          assert_rule bind_rule ureturn_rule Let_rule If_rule
+          option_rule prod_rule prod_pre_split
+                 
+lemmas [sep_heap_rules] =
+          length_rule SepAuto_Time.return_rule
+          new_rule make_rule
+          ref_rule lookup_rule upd_rule'
+          update_rule 
+          assert_rule_alt
+
+
+thm upd_rule'
+
+lemmas [sep_eintros] = impI conjI exI
+   
+subsection \<open>examples for sep_auto\<close>
+      
+schematic_goal "<$ 1> Array_Time.new 0 0 <?Q8>"
+  by sep_auto
+
+
+subsection \<open>BUGS and Ideas for enhancements\<close>
+
+text \<open>time_frame_inference has the invariant, that the last
+    component in the symbolic heap is a time credit.
+    once such a time credit is not available the method breaks,
+    this occurs for example, when an operation has no advertised cost
+    while using sep_auto.
+    e.g. in fibonacci/Doubly_Linked_List_With_Time : dll_fold_rule_weak\<close>
+schematic_goal " xs\<^sub>2 = [] \<Longrightarrow>
+          A * (B * F) * $ (Suc (Suc 0)) \<Longrightarrow>\<^sub>A
+          B * F * ?R * $0" 
+  apply time_frame_inference oops
+
+schematic_goal " xs\<^sub>2 = [] \<Longrightarrow>
+          A * (B * F) * $ (Suc (Suc 0)) \<Longrightarrow>\<^sub>A
+          B * F * ?R "   oops
 
 
 

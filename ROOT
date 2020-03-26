@@ -1,5 +1,5 @@
 
-session SepAuto_Time = SepLogicTime_RBTreeBasic +
+session SepAuto_Time = Imperative_HOL_Time +
  
   theories 
     SepLog_Automatic
